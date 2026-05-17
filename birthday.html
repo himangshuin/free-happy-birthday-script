@@ -436,7 +436,7 @@ const params=new URLSearchParams(location.search);
 const NAME  =params.get('n')||'Friend';
 const THEME =THEMES[params.get('t')||'rose']||THEMES.rose;
 const MSG   =params.get('m')||'Wishing you a day as magical as you are! May every dream take flight and every moment shine. 🌟';
-const PKEY  =params.get('pk')||'';
+const IMG   =params.get('img')||''; // base64 image data (without data: prefix)
 
 /* Apply theme CSS vars */
 document.documentElement.style.setProperty('--c1',THEME.a);
@@ -448,15 +448,13 @@ document.getElementById('nameTitle').textContent=NAME;
 document.getElementById('msgBox').textContent=MSG;
 document.title=`Happy Birthday ${NAME}! 🎂`;
 
-/* Photo */
-if(PKEY){
+/* Photo — read directly from URL param, works cross-device */
+if(IMG){
   try{
-    const data=sessionStorage.getItem(PKEY);
-    if(data){
-      const img=document.getElementById('avatarImg');
-      img.src=data;
-      document.getElementById('avatarWrap').style.display='block';
-    }
+    const avatarImg=document.getElementById('avatarImg');
+    avatarImg.src='data:image/jpeg;base64,'+IMG;
+    avatarImg.onerror=()=>{ document.getElementById('avatarWrap').style.display='none'; };
+    document.getElementById('avatarWrap').style.display='block';
   }catch(e){}
 }
 
