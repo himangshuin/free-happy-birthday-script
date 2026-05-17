@@ -185,30 +185,57 @@ document.getElementById('swatchRow').addEventListener('click',e=>{
 
 /* PHOTO */
 const photoInput=document.getElementById('photoInput'),photoPreview=document.getElementById('photoPreview'),uploadIcon=document.getElementById('uploadIcon');
-let photoKey='';
+let photoB64=''; // base64 string stored in memory only
+
 photoInput.addEventListener('change',e=>{
   const file=e.target.files[0];if(!file)return;
-  if(file.size>4*1024*1024){toast('⚠️ Image must be under 4 MB');return;}
+  if(file.size>2*1024*1024){toast('⚠️ Image must be under 2 MB for sharing');return;}
   const reader=new FileReader();
   reader.onload=ev=>{
-    const data=ev.target.result;
-    photoPreview.src=data;photoPreview.style.display='block';uploadIcon.style.display='none';
-    photoKey='bd_photo_'+Date.now();
-    try{sessionStorage.setItem(photoKey,data);}catch(err){photoKey='';}
-    toast('📸 Photo ready!');
+    // Compress via canvas to keep URL size manageable
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=200;
+      const canvas=document.createElement('canvas');
+      const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+      canvas.width=Math.round(img.width*ratio);
+      canvas.height=Math.round(img.height*ratio);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      photoB64=canvas.toDataURL('image/jpeg',.7);
+      photoPreview.src=photoB64;
+      photoPreview.style.display='block';
+      uploadIcon.style.display='none';
+      toast('📸 Photo ready!');
+    };
+    img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 });
 
-/* BUILD URL */
+/* BUILD URL — works on GitHub Pages with any repo subfolder */
 function buildURL(){
   const name=document.getElementById('bName').value.trim();
   if(!name){toast('👆 Please enter their name first!');return null;}
   const msg=document.getElementById('bMsg').value.trim();
-  const base=window.location.href.replace(/index\.html.*$/,'').replace(/\/?$/,'/');
-  const params=new URLSearchParams({n:name,t:selectedTheme,m:msg});
-  if(photoKey)params.set('pk',photoKey);
-  return base+'birthday.html?'+params.toString();
+
+  // Robust base: strip everything after the last "/" to get the folder
+  const base=window.location.href.split('?')[0].split('#')[0]
+               .replace(/\/[^\/]*$/,'/');
+
+  const p=new URLSearchParams({n:name,t:selectedTheme,m:msg});
+
+  // Embed compressed photo directly in URL so shared links work cross-browser/device
+  if(photoB64){
+    // Strip "data:image/jpeg;base64," prefix and store raw base64
+    const raw=photoB64.split(',')[1];
+    if(raw&&raw.length<200000){ // ~150KB base64 limit for URL safety
+      p.set('img',raw);
+    } else {
+      toast('⚠️ Photo too large for sharing — link will work without it');
+    }
+  }
+
+  return base+'birthday.html?'+p.toString();
 }
 
 /* LAUNCH */
